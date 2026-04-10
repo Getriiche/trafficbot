@@ -3,14 +3,14 @@ FROM node:18-slim AS builder
 
 WORKDIR /app
 
+# Copy all files first (needed for postinstall scripts)
+COPY . .
+
 # Install dependencies for build
-COPY package*.json ./
-# Tell puppeteer to skip browser download during npm install in build stage
-# because we will use the one provided by the base image or install it specifically
+# Tell puppeteer to skip browser download during npm install
 RUN PUPPETEER_SKIP_DOWNLOAD=true npm install
 
-# Copy source and build
-COPY . .
+# Build TypeScript
 RUN npm run build
 
 # Stage 2: Runtime
