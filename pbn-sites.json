@@ -211,6 +211,7 @@
       "name": "Web Development Intro",
       "url": "https://www.web-development-intro.com",
       "tier": "tier1",
+      "enabled": false,
       "keywords": [
         "website development company​",
         "how to make a website website",
