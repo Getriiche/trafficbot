@@ -24,7 +24,6 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/useragent ./useragent
 COPY --from=builder /app/pbn-sites.json ./
 COPY --from=builder /app/src/infrastructure/proxy/*.txt ./src/infrastructure/proxy/
-COPY --from=builder /app/.env.example ./.env.example
 
 # Install production dependencies only
 RUN npm install --omit=dev
