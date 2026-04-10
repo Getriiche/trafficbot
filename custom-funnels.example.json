@@ -1,0 +1,119 @@
+{
+  "description": "Configuration de funnels PBN personnalisés avec URLs spécifiques par tier",
+  "funnels": [
+    {
+      "id": "funnel-seo-tools",
+      "name": "SEO Tools Funnel",
+      "description": "Reddit → Old Authority Blog → EMD Guide → Money Site (SEO Tools)",
+      "targetKeyword": "best seo tools",
+      "steps": [
+        {
+          "tier": "tier3",
+          "url": "https://www.reddit.com/r/SEO/comments/example-post/",
+          "durationSeconds": 120,
+          "keyword": "seo tools discussion",
+          "intensity": "low",
+          "clickProbability": 0.3
+        },
+        {
+          "tier": "tier2",
+          "url": "https://oldauthorityblog.com/seo-tools-guide/",
+          "durationSeconds": 180,
+          "keyword": "seo tools guide",
+          "intensity": "medium",
+          "clickProbability": 0.7
+        },
+        {
+          "tier": "tier1",
+          "url": "https://bestseotoolsguide.com/reviews/",
+          "durationSeconds": 150,
+          "keyword": "best seo tools 2024",
+          "intensity": "high",
+          "clickProbability": 0.8
+        },
+        {
+          "tier": "moneysite",
+          "url": "https://your-seo-tool.com/",
+          "durationSeconds": 300,
+          "keyword": "buy seo tools",
+          "intensity": "high",
+          "clickProbability": 0.9
+        }
+      ],
+      "customReferrers": {
+        "tier3": "https://www.google.com/search?q=reddit+seo+tools",
+        "tier2": "https://www.reddit.com/r/SEO/comments/example-post/",
+        "tier1": "https://oldauthorityblog.com/seo-tools-guide/",
+        "moneysite": "https://bestseotoolsguide.com/reviews/"
+      },
+      "repeatCount": 3,
+      "delayBetweenRuns": 30
+    },
+    {
+      "id": "funnel-affiliate-marketing",
+      "name": "Affiliate Marketing Funnel",
+      "description": "Medium → Expired Domain → Niche Site → Money Site",
+      "targetKeyword": "affiliate marketing course",
+      "steps": [
+        {
+          "tier": "tier3",
+          "url": "https://medium.com/@affiliate-expert/best-courses-2024",
+          "durationSeconds": 90,
+          "keyword": "affiliate marketing",
+          "intensity": "low"
+        },
+        {
+          "tier": "tier2",
+          "url": "https://marketinginsider.net/affiliate-strategies/",
+          "durationSeconds": 240,
+          "keyword": "affiliate strategies",
+          "intensity": "medium"
+        },
+        {
+          "tier": "tier1",
+          "url": "https://affiliatecourseguide.com/",
+          "durationSeconds": 180,
+          "keyword": "affiliate course reviews",
+          "intensity": "high"
+        },
+        {
+          "tier": "moneysite",
+          "url": "https://your-affiliate-course.com/checkout",
+          "durationSeconds": 240,
+          "keyword": "enroll now",
+          "intensity": "high"
+        }
+      ],
+      "repeatCount": 2
+    },
+    {
+      "id": "funnel-simple-direct",
+      "name": "Direct Social to Money",
+      "description": "Quora → Money Site (Short funnel)",
+      "targetKeyword": "content marketing tips",
+      "steps": [
+        {
+          "tier": "tier3",
+          "url": "https://www.quora.com/What-are-the-best-content-marketing-tips",
+          "durationSeconds": 60,
+          "keyword": "content marketing",
+          "intensity": "low"
+        },
+        {
+          "tier": "moneysite",
+          "url": "https://your-content-agency.com/",
+          "durationSeconds": 180,
+          "keyword": "hire content agency",
+          "intensity": "high"
+        }
+      ],
+      "repeatCount": 5,
+      "delayBetweenRuns": 10
+    }
+  ],
+  "defaultSettings": {
+    "intensity": "medium",
+    "clickProbability": 0.6,
+    "delayBetweenRuns": 15
+  }
+}
