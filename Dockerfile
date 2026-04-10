@@ -25,8 +25,8 @@ COPY --from=builder /app/useragent ./useragent
 COPY --from=builder /app/pbn-sites.json ./
 COPY --from=builder /app/src/infrastructure/proxy/*.txt ./src/infrastructure/proxy/
 
-# Install production dependencies only
-RUN npm install --omit=dev
+# Copy node_modules from builder (already installed)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Environment setup
 ENV NODE_ENV=production
