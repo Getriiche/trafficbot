@@ -74,6 +74,8 @@ export class PBNTrafficManager {
     const projectRoot = path.resolve(__dirname, '..', '..', '..');
     const proxyFiles = [
       process.env.IPCOOK_PROXY_FILE,
+      '/app/proxy_listUS.txt',
+      '/app/proxy_listFR.txt',
       path.join(projectRoot, 'src', 'infrastructure', 'proxy', 'proxy_listUS.txt'),
       path.join(projectRoot, 'src', 'infrastructure', 'proxy', 'proxy_listFR.txt'),
       path.join(projectRoot, 'proxies', 'ipcook_us.txt'),
