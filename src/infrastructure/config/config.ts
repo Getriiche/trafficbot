@@ -34,8 +34,24 @@ const ConfigSchema = z.object({
   PBN_ENABLED: z.preprocess((val) => val === 'true', z.boolean()).default(false),
   PBN_SITES_CONFIG: z.string().default('./pbn-sites.json'),
   
-  // [IPCook Proxy Configuration]
-  IPCOOK_PROXY_LIST: z.string().optional(), // Format: host:port:user:pass,host:port:user2:pass2
+  // [Private Proxy List - Format: host:port:user:pass per line]
+  // Supports session sticky if provider supports it (e.g., _session-{id})
+  PROXY_LIST: z.string().optional(), // e.g., "proxy1.com:1234:user:pass\nproxy2.com:1234:user:pass"
+  PROXY_FILE: z.string().optional(), // Path to proxy list file
+  
+  // [IPRoyal Web Unblocker - DEPRECATED: Not compatible with Puppeteer]
+  // Kept for backward compatibility but NOT recommended for browser automation
+  IPROYAL_HOST: z.string().default('unblocker.iproyal.com'),
+  IPROYAL_PORT: z.coerce.number().default(12323),
+  IPROYAL_USER: z.string().optional(),
+  IPROYAL_PASS: z.string().optional(),
+  IPROYAL_COUNTRY: z.string().optional(),
+  IPROYAL_STATE: z.string().optional(),
+  IPROYAL_CITY: z.string().optional(),
+  IPROYAL_RENDER_JS: z.preprocess((a) => a === 'true' || a === '1' || a === true, z.boolean()).default(false)
+  
+  // [IPCook Proxy Configuration - DEPRECATED, use IPRoyal instead]
+  IPCOOK_PROXY_LIST: z.string().optional(),
   IPCOOK_API_AUTH: z.string().optional(),
   IPCOOK_ACCESS_ID: z.string().optional(),
   IPCOOK_SIGN: z.string().optional(),

@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { TrafficOrchestrator } from '../traffic/TrafficOrchestrator';
 import { PuppeteerStealthEngine } from '../../infrastructure/browser/PuppeteerStealthEngine';
 import { FunnelPlannerService, funnelPlanner } from '../../infrastructure/pbn/FunnelPlannerService';
@@ -49,92 +50,72 @@ export class PBNTrafficManager {
    * 2. IPCOOK_PROXY_FILE: path to file with one proxy per line
    * 3. Single proxy from Config.PROXY_URL/PORT/USER/PASS
    */
+  private funnelSessionCounter = 0;
+
   private loadProxiesFromEnv(): { host: string; port: number; username?: string; password?: string; country?: string }[] {
     const proxies: { host: string; port: number; username?: string; password?: string; country?: string }[] = [];
     
-    // IPCook proxy list (supports 1000+ proxies)
-    const ipcookList = process.env.IPCOOK_PROXY_LIST;
-    if (ipcookList) {
-      const proxyStrings = ipcookList.split(',').map(p => p.trim()).filter(Boolean);
-      
-      for (const str of proxyStrings) {
-        const parsed = this.parseIPCookProxy(str);
-        if (parsed) proxies.push(parsed);
+    // Parse proxy list from PROXY_LIST env var (format: host:port:user:pass per line)
+    if (Config.PROXY_LIST) {
+      const lines = Config.PROXY_LIST.split('\n').filter(line => line.trim());
+      for (const line of lines) {
+        const parts = line.trim().split(':');
+        if (parts.length >= 2) {
+          const [host, portStr, username, password] = parts;
+          const port = parseInt(portStr, 10);
+          if (host && !isNaN(port)) {
+            proxies.push({ host, port, username, password });
+          }
+        }
       }
-      
       if (proxies.length > 0) {
-        logger.info('Loaded IPCook proxies', { count: proxies.length });
+        logger.info('Loaded proxies from PROXY_LIST', { count: proxies.length });
         return proxies;
       }
     }
     
-    // Try loading from proxy file (one proxy per line)
-    // Support both absolute and relative paths from multiple base directories
-    const path = require('path');
-    const projectRoot = path.resolve(__dirname, '..', '..', '..');
-    const proxyFiles = [
-      process.env.IPCOOK_PROXY_FILE,
-      '/app/proxy_listUS.txt',
-      '/app/proxy_listFR.txt',
-      path.join(projectRoot, 'src', 'infrastructure', 'proxy', 'proxy_listUS.txt'),
-      path.join(projectRoot, 'src', 'infrastructure', 'proxy', 'proxy_listFR.txt'),
-      path.join(projectRoot, 'proxies', 'ipcook_us.txt'),
-      path.join(projectRoot, 'proxies', 'ipcook_fr.txt'),
-      './src/infrastructure/proxy/proxy_listUS.txt',
-      './src/infrastructure/proxy/proxy_listFR.txt',
-      './proxies/ipcook_us.txt',
-      './proxies/ipcook_fr.txt'
-    ].filter(Boolean);
-    
-    logger.info('[DEBUG] Looking for proxy files', { projectRoot, filesToCheck: proxyFiles.length });
-    
-    let loadedFiles = 0;
-    for (const filePath of proxyFiles) {
-      if (!filePath) continue;
+    // Load from PROXY_FILE if specified
+    if (Config.PROXY_FILE) {
       try {
-        const fs = require('fs');
-        logger.debug('[DEBUG] Checking proxy file', { file: filePath, exists: fs.existsSync(filePath) });
-        if (fs.existsSync(filePath)) {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const lines = content.split('\n').map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith('#'));
-          
-          logger.info('[DEBUG] Found proxy file', { file: filePath, lines: lines.length, firstLine: lines[0]?.substring(0, 40) });
-          
-          let fileProxies = 0;
+        if (fs.existsSync(Config.PROXY_FILE)) {
+          const content = fs.readFileSync(Config.PROXY_FILE, 'utf-8');
+          const lines = content.split('\n').filter(line => line.trim());
           for (const line of lines) {
-            const parsed = this.parseIPCookProxy(line);
-            if (parsed) {
-              proxies.push(parsed);
-              fileProxies++;
+            const parts = line.trim().split(':');
+            if (parts.length >= 2) {
+              const [host, portStr, username, password] = parts;
+              const port = parseInt(portStr, 10);
+              if (host && !isNaN(port)) {
+                proxies.push({ host, port, username, password });
+              }
             }
           }
-          
-          if (fileProxies > 0) {
-            loadedFiles++;
-            logger.info('Loaded proxies from file', { count: fileProxies, file: filePath });
+          if (proxies.length > 0) {
+            logger.info('Loaded proxies from PROXY_FILE', { file: Config.PROXY_FILE, count: proxies.length });
+            return proxies;
           }
         }
-      } catch (err) {
-        logger.debug('[DEBUG] Failed to load proxy file', { file: filePath, error: (err as Error).message });
+      } catch (error) {
+        logger.warn('Failed to load proxy file', { file: Config.PROXY_FILE, error });
       }
     }
     
-    if (proxies.length > 0) {
-      logger.info('Total proxies loaded from all files', { total: proxies.length, files: loadedFiles });
-      return proxies;
-    }
-    
-    // Single proxy from config (fallback)
+    // Fallback: Single proxy from legacy config
     if (Config.PROXY_URL && Config.PROXY_PORT) {
-      proxies.push({
+      return [{
         host: Config.PROXY_URL,
         port: Config.PROXY_PORT,
         username: Config.PROXY_USER,
         password: Config.PROXY_PASS
-      });
+      }];
     }
     
-    return proxies;
+    // IPRoyal Web Unblocker (deprecated - not compatible with Puppeteer)
+    if (Config.IPROYAL_USER && Config.IPROYAL_PASS) {
+      logger.warn('IPRoyal Web Unblocker is deprecated - not compatible with Puppeteer');
+    }
+    
+    return [];
   }
 
   /**
@@ -169,25 +150,30 @@ export class PBNTrafficManager {
    * Get next proxy for rotation between funnels
    * Each funnel gets a fresh proxy
    */
-  private getNextProxy(): { host: string; port: number; username?: string; password?: string } | undefined {
-    if (this.proxyList.length === 0) {
-      return undefined;
-    }
-    
-    if (this.proxyList.length === 1) {
-      return this.proxyList[0];
-    }
-    
+  private getNextProxy(funnelId?: string): { host: string; port: number; username?: string; password?: string } | undefined {
+    if (this.proxyList.length === 0) return undefined;
     const proxy = this.proxyList[this.currentProxyIndex];
     this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyList.length;
     
+    // Session sticky: Append session ID to password to keep same IP throughout funnel
+    // Works with providers that support _session-{id} suffix (Bright Data, Oxylabs, some private proxies)
+    let finalProxy = { ...proxy };
+    if (funnelId && finalProxy.password) {
+      // Check if password already has session suffix
+      if (!finalProxy.password.includes('_session-')) {
+        finalProxy.password = `${finalProxy.password}_session-${funnelId}`;
+        logger.debug('Session sticky enabled', { funnelId, host: proxy.host });
+      }
+    }
+    
     logger.debug('Rotated to next proxy', { 
       index: this.currentProxyIndex, 
-      total: this.proxyList.length,
-      host: proxy.host 
+      total: this.proxyList.length, 
+      host: proxy.host,
+      hasSessionSticky: !!funnelId
     });
     
-    return proxy;
+    return finalProxy;
   }
 
   /**
@@ -371,7 +357,8 @@ export class PBNTrafficManager {
         const funnelPromise = (async () => {
           try {
             // Get fresh proxy for this funnel (rotation between funnels)
-            const proxy = this.getNextProxy();
+            // Pass session.id for IPRoyal session sticky (same IP throughout funnel)
+            const proxy = this.getNextProxy(session.id);
             
             const success = await this.executeFunnelSession(session, proxy);
             if (success) {
@@ -421,27 +408,37 @@ export class PBNTrafficManager {
     const startTime = Date.now();
     const sessionId = session.id;
     
-    // 1. Validate IP before starting (if proxy provided)
-    let initialIp: string | null = null;
+    // Skip IP validation for IPRoyal (rotation handled by IPRoyal, checking would give wrong IP)
+    const isIPRoyal = proxy?.host === 'unblocker.iproyal.com';
+    
+    // 1. Log proxy info (skip validation for IPRoyal - it handles rotation internally)
     if (proxy) {
-      const ipCheck = await ReputationService.checkIP(`${proxy.host}:${proxy.port}`);
-      if (ipCheck) {
-        initialIp = ipCheck.ip;
-        logger.info('Starting funnel with validated IP', { 
+      if (isIPRoyal) {
+        logger.info('Starting funnel with IPRoyal Web Unblocker', { 
           sessionId, 
-          ip: initialIp,
-          country: ipCheck.country,
-          isp: ipCheck.isp
+          country: Config.IPROYAL_COUNTRY || 'auto',
+          hasSessionSticky: proxy.password?.includes('_session-')
         });
-        
-        // Alert if IP is burnt
-        if (ipCheck.hosting || ipCheck.proxy || ipCheck.vpn) {
-          logger.warn('Warning: Using potentially flagged IP', { 
+      } else {
+        // Legacy: Validate IP for non-IPRoyal proxies
+        const ipCheck = await ReputationService.checkIP(`${proxy.host}:${proxy.port}`);
+        if (ipCheck) {
+          logger.info('Starting funnel with validated IP', { 
             sessionId, 
-            hosting: ipCheck.hosting,
-            proxy: ipCheck.proxy,
-            vpn: ipCheck.vpn
+            ip: ipCheck.ip,
+            country: ipCheck.country,
+            isp: ipCheck.isp
           });
+          
+          // Alert if IP is burnt
+          if (ipCheck.hosting || ipCheck.proxy || ipCheck.vpn) {
+            logger.warn('Warning: Using potentially flagged IP', { 
+              sessionId, 
+              hosting: ipCheck.hosting,
+              proxy: ipCheck.proxy,
+              vpn: ipCheck.vpn
+            });
+          }
         }
       }
     }
@@ -483,19 +480,8 @@ export class PBNTrafficManager {
         proxy: trafficSession.config.proxy
       });
 
-      // 3. Validate IP after completion (check stability)
-      if (proxy && initialIp) {
-        const finalCheck = await ReputationService.checkIP(`${proxy.host}:${proxy.port}`);
-        if (finalCheck && finalCheck.ip !== initialIp) {
-          logger.warn('IP changed during funnel execution', { 
-            sessionId, 
-            initialIp, 
-            finalIp: finalCheck.ip 
-          });
-        } else {
-          logger.info('IP remained stable throughout funnel', { sessionId, ip: initialIp });
-        }
-      }
+      // IP validation skipped for IPRoyal (session sticky ensures same IP)
+      // For legacy proxies, validation is done at start only
 
       const duration = Date.now() - startTime;
       logger.info('Funnel completed successfully', { 
@@ -554,16 +540,29 @@ export class PBNTrafficManager {
   private async addToQueue(session: FunnelSession): Promise<void> {
     const totalDuration = session.steps.reduce((sum, s) => sum + s.durationSeconds, 0);
     
+    // Build proxy config for queue (IPRoyal or legacy)
+    let proxyData: TrafficJobData['proxy'] = undefined;
+    if (Config.IPROYAL_USER && Config.IPROYAL_PASS) {
+      proxyData = {
+        host: Config.IPROYAL_HOST,
+        port: Config.IPROYAL_PORT,
+        username: Config.IPROYAL_USER,
+        password: `${Config.IPROYAL_PASS}${Config.IPROYAL_COUNTRY ? `_country-${Config.IPROYAL_COUNTRY}` : ''}${Config.IPROYAL_RENDER_JS ? '_render-1' : ''}`
+      };
+    } else if (Config.PROXY_URL && Config.PROXY_PORT) {
+      proxyData = {
+        host: Config.PROXY_URL,
+        port: Config.PROXY_PORT,
+        username: Config.PROXY_USER,
+        password: Config.PROXY_PASS
+      };
+    }
+    
     const jobData: TrafficJobData = {
       url: session.steps[0]?.url || Config.DEFAULT_URL,
       durationMinutes: Math.ceil(totalDuration / 60),
       intensity: 'medium',
-      proxy: Config.PROXY_URL ? {
-        host: Config.PROXY_URL,
-        port: Config.PROXY_PORT!,
-        username: Config.PROXY_USER,
-        password: Config.PROXY_PASS
-      } : undefined
+      proxy: proxyData
     };
 
     await QueueService.addSession(jobData);

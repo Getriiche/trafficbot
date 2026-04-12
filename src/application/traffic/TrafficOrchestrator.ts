@@ -49,23 +49,9 @@ export class TrafficOrchestrator {
         fingerprintScript: options.fingerprintScript
       });
 
-      // 1. Geolocation Matching
-      if (Config.MATCH_GEOLOCATION && config.proxy) {
-        try {
-          // Fetch simple geo info from the proxy context (this assumes the bot can reach an external API)
-          // In a real scenario, we might want to cache this or use a static lookup
-          const response = await fetch('http://ip-api.com/json');
-          if (response.ok) {
-            const data: any = await response.json();
-            if (data.lat && data.lon) {
-              logger.info('Setting Geolocation to match Proxy', { lat: data.lat, lon: data.lon, city: data.city });
-              await this.engine.setGeolocation(data.lat, data.lon);
-            }
-          }
-        } catch (e) {
-          logger.debug('Geolocation matching failed, using browser default', { e });
-        }
-      }
+      // 1. Geolocation Matching (disabled for IPRoyal - proxy handles geo-targeting)
+      // IPRoyal Web Unblocker automatically handles geo-location via _country-XX password suffix
+      // For legacy proxies, this would require checking IP first (skipped to avoid detection)
 
       // 2. Organic Search or Referrer Spoofing
       if (Config.ORGANIC_SEARCH && Config.SEARCH_KEYWORDS.length > 0) {

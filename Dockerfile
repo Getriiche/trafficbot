@@ -23,8 +23,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/useragent ./useragent
 COPY --from=builder /app/pbn-sites.json ./
-COPY --from=builder /app/src/infrastructure/proxy/*.txt ./
-COPY --from=builder /app/src/infrastructure/proxy/*.txt ./src/infrastructure/proxy/
+# Note: Proxy files removed - using IPRoyal Web Unblocker (API-based)
 
 # Copy node_modules from builder (already installed)
 COPY --from=builder /app/node_modules ./node_modules
