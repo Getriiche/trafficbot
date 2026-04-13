@@ -48,8 +48,8 @@ const ConfigSchema = z.object({
   IPROYAL_COUNTRY: z.string().optional(),
   IPROYAL_STATE: z.string().optional(),
   IPROYAL_CITY: z.string().optional(),
-  IPROYAL_RENDER_JS: z.preprocess((a) => a === 'true' || a === '1' || a === true, z.boolean()).default(false)
-  
+  IPROYAL_RENDER_JS: z.preprocess((a) => a === 'true' || a === '1' || a === true, z.boolean()).default(false),
+
   // [IPCook Proxy Configuration - DEPRECATED, use IPRoyal instead]
   IPCOOK_PROXY_LIST: z.string().optional(),
   IPCOOK_API_AUTH: z.string().optional(),
