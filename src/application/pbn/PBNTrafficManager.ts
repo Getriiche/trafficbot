@@ -408,10 +408,11 @@ export class PBNTrafficManager {
     const startTime = Date.now();
     const sessionId = session.id;
     
-    // Skip IP validation for IPRoyal (rotation handled by IPRoyal, checking would give wrong IP)
+    // Skip IP validation for IPRoyal and private proxies (checking would give wrong IP)
     const isIPRoyal = proxy?.host === 'unblocker.iproyal.com';
+    const isPrivateProxy = proxy?.host && proxy.host !== 'unblocker.iproyal.com';
     
-    // 1. Log proxy info (skip validation for IPRoyal - it handles rotation internally)
+    // 1. Log proxy info (skip validation for all proxies - checking gives server IP not proxy IP)
     if (proxy) {
       if (isIPRoyal) {
         logger.info('Starting funnel with IPRoyal Web Unblocker', { 
@@ -419,27 +420,21 @@ export class PBNTrafficManager {
           country: Config.IPROYAL_COUNTRY || 'auto',
           hasSessionSticky: proxy.password?.includes('_session-')
         });
+      } else if (isPrivateProxy) {
+        // Private proxies: skip IP validation (would detect server IP, not proxy IP)
+        logger.info('Starting funnel with private proxy', { 
+          sessionId, 
+          proxy: `${proxy.host}:${proxy.port}`,
+          hasSessionSticky: proxy.password?.includes('_session-')
+        });
       } else {
-        // Legacy: Validate IP for non-IPRoyal proxies
-        const ipCheck = await ReputationService.checkIP(`${proxy.host}:${proxy.port}`);
-        if (ipCheck) {
-          logger.info('Starting funnel with validated IP', { 
-            sessionId, 
-            ip: ipCheck.ip,
-            country: ipCheck.country,
-            isp: ipCheck.isp
-          });
-          
-          // Alert if IP is burnt
-          if (ipCheck.hosting || ipCheck.proxy || ipCheck.vpn) {
-            logger.warn('Warning: Using potentially flagged IP', { 
-              sessionId, 
-              hosting: ipCheck.hosting,
-              proxy: ipCheck.proxy,
-              vpn: ipCheck.vpn
-            });
-          }
-        }
+        // Legacy: Skip IP validation for all proxies
+        logger.info('Starting funnel with proxy', { 
+          sessionId, 
+          proxy: `${proxy.host}:${proxy.port}`
+        });
+        // Note: ReputationService.checkIP() makes direct requests from server,
+        // so it would return server IP (95.216.208.243) not proxy IP - disabled
       }
     }
 
